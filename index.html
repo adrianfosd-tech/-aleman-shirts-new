@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Aleman Shirts — Tienda</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.emailjs.com/sdk/3.2.0/email.min.js"></script>
+  <style>
+    .mp-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:60; }
+    .mp-modal { width: 420px; max-width:95%; background: #fff; border-radius:12px; box-shadow:0 10px 30px rgba(2,6,23,0.4); overflow:hidden; }
+    .mp-header { display:flex; align-items:center; gap:12px; padding:16px; background: linear-gradient(90deg,#ffd33d,#00a650); color:#fff; }
+    .mp-logo { width:48px; height:48px; background: #fff; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#0b6b38 }
+    .mp-body { padding:16px; }
+    .mp-footer { padding:16px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:8px; }
+    .mp-input { width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; }
+    .hidden { display:none !important; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <header class="bg-white shadow p-4 flex items-center gap-4">
+    <!-- Pon aquí tu logo en la misma carpeta: nombre de archivo: logo.png -->
+    <img src="logo.png" alt="Aleman Shirts" style="height:56px; width:auto; object-fit:contain;" onerror="this.style.display='none'" />
+    <h1 class="text-2xl font-bold text-indigo-600">Aleman Shirts</h1>
+    <div class="ml-auto text-sm text-gray-600" id="contadorCarrito">Carrito: 0 artículos</div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-6 grid md:grid-cols-3 gap-6" id="productos"></main>
+
+  <section class="max-w-4xl mx-auto mt-10 bg-white p-6 rounded-xl shadow">
+    <h2 class="text-2xl font-bold mb-4 text-indigo-600">Finalizar Pedido</h2>
+
+    <div id="carritoVacio" class="text-gray-500">Tu carrito está vacío.</div>
+    <ul id="listaCarrito" class="divide-y divide-gray-200 mb-4 hidden" aria-live="polite"></ul>
+    <p id="total" class="font-semibold mb-4 hidden"></p>
+
+    <form id="formPedido" class="grid md:grid-cols-2 gap-4 hidden" novalidate>
+      <input id="nombre" name="nombre" type="text" placeholder="Nombre completo" class="p-3 border rounded" required />
+      <input id="emailCliente" name="email" type="email" placeholder="Correo electrónico" class="p-3 border rounded" required />
+      <input id="direccion" name="direccion" type="text" placeholder="Dirección de envío" class="p-3 border rounded md:col-span-2" required />
+      <select id="metodoPago" name="metodoPago" class="border rounded p-2 md:col-span-2" required>
+        <option value="">Selecciona método de pago</option>
+        <option value="mp">Mercado Pago</option>
+        <option value="tarjeta">Tarjeta</option>
+        <option value="oxxo">OXXO</option>
+      </select>
+      <button id="btnConfirm" type="submit" class="mt-6 bg-indigo-600 text-white w-full py-3 rounded-lg text-lg md:col-span-2">Pagar</button>
+    </form>
+
+    <div class="mt-4 flex gap-3">
+      <button id="verPedidos" class="bg-gray-700 text-white px-4 py-2 rounded">Ver pedidos guardados</button>
+      <button id="limpiarPedidos" class="bg-red-600 text-white px-4 py-2 rounded">Borrar pedidos guardados</button>
+    </div>
+
+    <div id="pedidosGuardados" class="mt-4 text-sm text-gray-700"></div>
+  </section>
+
+  <footer class="text-center text-sm text-gray-500 py-6 mt-10 border-t">© 2025 Aleman Shirts</footer>
+
+  <!-- Modal simulado MP -->
+  <div id="mpModal" class="hidden">
+    <div class="mp-backdrop">
+      <div class="mp-modal" role="dialog" aria-modal="true" aria-labelledby="mpTitle">
+        <div class="mp-header">
+          <div class="mp-logo">MP</div>
+          <div>
+            <div id="mpTitle" class="font-semibold">Mercado Pago</div>
+            <div class="text-sm">Pago seguro — Aleman Shirts</div>
+          </div>
+        </div>
+        <div class="mp-body">
+          <p class="text-sm text-gray-600 mb-3">Complete los datos de pago. Esta es una simulación segura (modo demo).</p>
+
+          <label class="text-sm">Número de tarjeta</label>
+          <input id="mp-card" class="mp-input mb-2" placeholder="4111 1111 1111 1111" />
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="text-sm">MM/AA</label>
+              <input id="mp-exp" class="mp-input mt-1" placeholder="12/34" />
+            </div>
+            <div class="col-span-2">
+              <label class="text-sm">CVV</label>
+              <input id="mp-cvv" class="mp-input mt-1" placeholder="123" />
+            </div>
+          </div>
+
+          <div id="mpError" class="text-sm text-red-600 mt-3 hidden">Datos inválidos. Usa números de tarjeta de prueba (ej: 4111 1111 1111 1111).</div>
+
+          <div id="mpStatus" class="text-sm text-green-600 mt-3 hidden">Procesando pago...</div>
+        </div>
+        <div class="mp-footer">
+          <button id="mpCancel" class="px-4 py-2 rounded border">Cancelar</button>
+          <button id="mpPay" class="px-4 py-2 rounded bg-[#00a650] text-white">Pagar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // === CONFIG (pega aquí tus credenciales EmailJS, ya las proporcionaste) ===
+    const EMAILJS_SERVICE_ID = 'service_8ud67vn';
+    const EMAILJS_TEMPLATE_ID = 'template_xyz987';
+    const EMAILJS_PUBLIC_KEY = 'lVTH_bii6tmvylfWr';
+
+    // Inicializar EmailJS
+    (function(){
+      if(window.emailjs) {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+      } else {
+        console.warn('EmailJS SDK no cargado. Asegúrate de tener conexión a internet.');
+      }
+    })();
+
+    // Productos de ejemplo
+    const productos = [
+      { id: 1, nombre: 'Playera Aleman - Blanca', precio: 299, imagen: 'https://via.placeholder.com/400x300?text=Playera+Blanca' },
+      { id: 2, nombre: 'Playera Aleman - Negra', precio: 319, imagen: 'https://via.placeholder.com/400x300?text=Playera+Negra' },
+      { id: 3, nombre: 'Sudadera Aleman', precio: 699, imagen: 'https://via.placeholder.com/400x300?text=Sudadera' }
+    ];
+
+    // DOM
+    const productosContainer = document.getElementById('productos');
+    const listaCarrito = document.getElementById('listaCarrito');
+    const carritoVacio = document.getElementById('carritoVacio');
+    const totalTexto = document.getElementById('total');
+    const formPedido = document.getElementById('formPedido');
+    const verPedidosBtn = document.getElementById('verPedidos');
+    const pedidosGuardadosDiv = document.getElementById('pedidosGuardados');
+    const limpiarPedidosBtn = document.getElementById('limpiarPedidos');
+    const contadorCarrito = document.getElementById('contadorCarrito');
+
+    // Modal elements
+    const mpModal = document.getElementById('mpModal');
+    const mpCard = document.getElementById('mp-card');
+    const mpExp = document.getElementById('mp-exp');
+    const mpCvv = document.getElementById('mp-cvv');
+    const mpError = document.getElementById('mpError');
+    const mpStatus = document.getElementById('mpStatus');
+    const mpCancel = document.getElementById('mpCancel');
+    const mpPay = document.getElementById('mpPay');
+
+    let carrito = [];
+
+    // Render productos
+    function renderProductos() {
+      productosContainer.innerHTML = '';
+      productos.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl shadow hover:shadow-lg overflow-hidden';
+        card.innerHTML = `\n          <img src="${p.imagen}" alt="${p.nombre}" class="w-full h-56 object-cover"/>\n          <div class="p-4 text-center">\n            <h3 class="text-lg font-semibold">${p.nombre}</h3>\n            <p class="text-gray-500 mb-2">$${p.precio} MXN</p>\n            <button class="bg-indigo-600 text-white px-4 py-2 rounded" onclick="agregarAlCarrito(${p.id})">Agregar al carrito</button>\n          </div>\n        `;
+        productosContainer.appendChild(card);
+      });
+    }
+
+    function agregarAlCarrito(id) {
+      const producto = productos.find(p => p.id === id);
+      if (!producto) return;
+      carrito.push(producto);
+      actualizarCarrito();
+    }
+
+    function actualizarCarrito() {
+      contadorCarrito.textContent = `Carrito: ${carrito.length} artículo${carrito.length === 1 ? '' : 's'}`;
+
+      if (carrito.length === 0) {
+        carritoVacio.classList.remove('hidden');
+        listaCarrito.classList.add('hidden');
+        totalTexto.classList.add('hidden');
+        formPedido.classList.add('hidden');
+        return;
+      }
+
+      carritoVacio.classList.add('hidden');
+      listaCarrito.classList.remove('hidden');
+      totalTexto.classList.remove('hidden');
+      formPedido.classList.remove('hidden');
+
+      listaCarrito.innerHTML = '';
+      carrito.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'py-2 flex justify-between items-center';
+        li.innerHTML = `\n          <span>${item.nombre}</span>\n          <div>\n            <span>$${item.precio}</span>\n            <button class=\"ml-2 text-red-600\" onclick=\"eliminarDelCarrito(${index})\">X</button>\n          </div>\n        `;
+        listaCarrito.appendChild(li);
+      });
+
+      const total = carrito.reduce((acc, item) => acc + item.precio, 0);
+      totalTexto.textContent = `Total: $${total} MXN`;
+    }
+
+    function eliminarDelCarrito(index) {
+      carrito.splice(index, 1);
+      actualizarCarrito();
+    }
+
+    // Cuando el usuario confirma el pedido abrimos el modal simulado o guardamos directamente
+    formPedido.addEventListener('submit', e => {
+      e.preventDefault();
+      const nombre = document.getElementById('nombre').value.trim();
+      const emailCliente = document.getElementById('emailCliente').value.trim();
+      const direccion = document.getElementById('direccion').value.trim();
+      const metodoPago = document.getElementById('metodoPago').value;
+
+      if (!nombre || !direccion || !metodoPago || !emailCliente) {
+        alert('Por favor completa todos los campos.');
+        return;
+      }
+
+      window.__pedidoEnProceso = { nombre, emailCliente, direccion, metodoPago, carrito: [...carrito], total: carrito.reduce((a,b)=>a+b.precio,0) };
+
+      if (metodoPago === 'mp') {
+        openMpModal();
+      } else {
+        finalizarYGuardarEPedirEmail(window.__pedidoEnProceso);
+      }
+    });
+
+    // Modal handlers
+    function openMpModal() {
+      mpModal.classList.remove('hidden');
+      mpCard.value = '';
+      mpExp.value = '';
+      mpCvv.value = '';
+      mpError.classList.add('hidden');
+      mpStatus.classList.add('hidden');
+    }
+    function closeMpModal() { mpModal.classList.add('hidden'); }
+    mpCancel.addEventListener('click', closeMpModal);
+
+    mpPay.addEventListener('click', () => {
+      const card = mpCard.value.replace(/\s+/g, '');
+      const exp = mpExp.value.trim();
+      const cvv = mpCvv.value.trim();
+
+      if (!/^[0-9]{13,19}$/.test(card) || !/^[0-9]{3,4}$/.test(cvv) || exp.length < 4) {
+        mpError.classList.remove('hidden');
+        return;
+      }
+
+      mpError.classList.add('hidden');
+      mpStatus.classList.remove('hidden');
+      mpStatus.textContent = 'Procesando pago...';
+
+      setTimeout(() => {
+        mpStatus.textContent = 'Pago aprobado ✓';
+        // Guardar y enviar emails
+        finalizarYGuardarEPedirEmail(window.__pedidoEnProceso, { provider: 'Mercado Pago (simulado)', paymentId: 'SIM-' + Date.now() });
+        setTimeout(() => closeMpModal(), 900);
+      }, 1500);
+    });
+
+    // Enviar correos (EmailJS) y guardar pedido en localStorage
+    function finalizarYGuardarEPedirEmail(pedidoObj, paymentInfo=null) {
+      if (!pedidoObj) return;
+      const pedidoFinal = Object.assign({}, pedidoObj, { paymentInfo, date: new Date().toISOString() });
+
+      // Guardar localmente
+      const pedidosGuardados = JSON.parse(localStorage.getItem('pedidos')) || [];
+      pedidosGuardados.push(pedidoFinal);
+      localStorage.setItem('pedidos', JSON.stringify(pedidosGuardados));
+
+      // Preparar lista de productos en HTML para el email
+      const productosHtml = pedidoObj.carrito.map(item => `<li>${item.nombre} - $${item.precio} MXN</li>`).join('');
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; color: #111;">
+          <img src="cid:logo" alt="Aleman Shirts" style="height:64px;" />
+          <h2>Gracias por tu compra en Aleman Shirts</h2>
+          <p>Hola <strong>${pedidoObj.nombre}</strong>,</p>
+          <p>Hemos recibido tu pedido. Aquí están los detalles:</p>
+          <ul>${productosHtml}</ul>
+          <p><strong>Total: $${pedidoObj.total} MXN</strong></p>
+          <p>Dirección de envío: ${pedidoObj.direccion}</p>
+          <p>Método de pago: ${pedidoObj.metodoPago}</p>
+          <p style="margin-top:18px;">¡Gracias por comprar con nosotros!</p>
+          <p style="font-size:12px; color:#666;">Aleman Shirts</p>
+        </div>
+      `;
+
+      // Parámetros para la plantilla EmailJS
+      const templateParamsAdmin = {
+        to_email: 'adrianfosd@gmail.com',
+        to_name: 'Administrador Aleman Shirts',
+        customer_name: pedidoObj.nombre,
+        customer_email: pedidoObj.emailCliente,
+        productos_html: productosHtml,
+        total: pedidoObj.total,
+        direccion: pedidoObj.direccion,
+        metodo_pago: pedidoObj.metodoPago,
+        order_date: pedidoFinal.date,
+        message_html: emailHtml
+      };
+
+      const templateParamsCustomer = Object.assign({}, templateParamsAdmin, {
+        to_email: pedidoObj.emailCliente,
+        to_name: pedidoObj.nombre
+      });
+
+      // Enviar correo al administrador
+      if (window.emailjs) {
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParamsAdmin)
+          .then(() => {
+            console.log('Correo admin enviado');
+          }, (err) => { console.error('Error al enviar correo admin:', err); });
+
+        // Enviar correo al cliente
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParamsCustomer)
+          .then(() => { console.log('Correo cliente enviado'); }, (err) => { console.error('Error al enviar correo cliente:', err); });
+      } else {
+        console.warn('EmailJS no está disponible — no se enviaron correos.');
+      }
+
+      alert('Pago realizado y pedido guardado. Se enviaron los correos de confirmación.');
+
+      // Limpiar carrito y UI
+      carrito = [];
+      actualizarCarrito();
+      formPedido.reset();
+      renderPedidosGuardados();
+    }
+
+    // Mostrar pedidos guardados
+    function renderPedidosGuardados() {
+      const pedidos = JSON.parse(localStorage.getItem('pedidos')) || [];
+      if (pedidos.length === 0) {
+        pedidosGuardadosDiv.innerHTML = '<em>No hay pedidos guardados aún.</em>';
+        return;
+      }
+      pedidosGuardadosDiv.innerHTML = pedidos.map((p, i) => `\n        <div class="border-b py-3">\n          <strong>Pedido ${i + 1}</strong> — <span class="text-xs text-gray-500">${new Date(p.date).toLocaleString()}</span><br>\n          Cliente: ${p.nombre}<br>\n          Correo: ${p.emailCliente}<br>\n          Dirección: ${p.direccion}<br>\n          Método: ${p.metodoPago}${p.paymentInfo ? ' — ' + p.paymentInfo.provider + ' (' + p.paymentInfo.paymentId + ')' : ''}<br>\n          Total: $${p.total} MXN\n        </div>\n      `).join('');
+    }
+
+    verPedidosBtn.addEventListener('click', renderPedidosGuardados);
+    limpiarPedidosBtn.addEventListener('click', () => {
+      if (!confirm('¿Borrar todos los pedidos guardados? Esta acción no se puede deshacer.')) return;
+      localStorage.removeItem('pedidos');
+      renderPedidosGuardados();
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderProductos();
+      actualizarCarrito();
+      renderPedidosGuardados();
+      console.log('Aleman Shirts listo — EmailJS integrado (demo).');
+    });
+
+    // Exponer funciones para botones inline
+    window.agregarAlCarrito = agregarAlCarrito;
+    window.eliminarDelCarrito = eliminarDelCarrito;
+  </script>
+</body>
+</html>
